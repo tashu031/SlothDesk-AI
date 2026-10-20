@@ -1,0 +1,37 @@
+# Python
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.pytest_cache/
+.coverage
+htmlcov/
+
+# Databases & local state
+*.db
+*.sqlite
+*.sqlite3
+slothdesk.db
+
+# Test playground (re-created dynamically on demand)
+sample_playground/
+
+# Node & Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+.npm
+npm-debug.log*
+
+# Environment and secrets
+.env
+.env.local
+
+# IDEs & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

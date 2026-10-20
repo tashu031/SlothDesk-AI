@@ -1,0 +1,25 @@
+{
+  "name": "slothdesk-ai",
+  "version": "1.0.0",
+  "description": "SlothDesk AI - Local-first AI productivity agent for safe file organization",
+  "private": true,
+  "scripts": {
+    "frontend:dev": "npm --prefix frontend run dev",
+    "frontend:build": "npm --prefix frontend run build",
+    "backend:test": "pytest backend/tests -v",
+    "backend:eval": "python backend/evaluator.py",
+    "backend:dev": "uvicorn backend.main:app --reload --port 8000"
+  },
+  "keywords": [
+    "hacktoberfest",
+    "local-ai",
+    "gemma",
+    "ollama",
+    "privacy",
+    "file-organizer",
+    "fastapi",
+    "react"
+  ],
+  "author": "SlothDesk Team",
+  "license": "MIT"
+}
