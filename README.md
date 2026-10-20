@@ -21,17 +21,36 @@ Modern desktop productivity is often hijacked by frantic hype and rushed tools t
 
 ---
 
+
 ## 📸 Screenshots & UI Preview
 
-*Interactive views featuring warm cream (`#FAF8F2`), forest green (`#1B3B2B`), and sage tones:*
+SlothDesk AI features a calm, accessible interface built around a simple principle: AI should assist with repetitive work while users stay in control.
 
-| View | Description | Preview Placeholder |
-|---|---|---|
-| **Overview Dashboard** | Files scanned, pending suggestions, actions completed, estimated time saved, and the "Lazy Morning Brief". | `[Screenshot Placeholder: Dashboard with metrics and Lazy Morning Brief]` |
-| **File Organizer** | Directory scanner with safe recursive traversal and bounded preview drawer. | `[Screenshot Placeholder: Discovered files table with type icons & snippet modal]` |
-| **Review & Approval Queue** | Interactive action plan with inline filename editing, category pickers, and safety checks modal. | `[Screenshot Placeholder: Action plan queue with Gemma AI attribution pills]` |
-| **Activity History & Undo** | Persistent SQLite audit log with instant one-click verified undo. | `[Screenshot Placeholder: Audit log with executed and undone statuses]` |
-| **Settings & AI Diagnostics** | Ollama health monitor, copyable setup guides, and live benchmark evaluation report. | `[Screenshot Placeholder: Live evaluation harness showing 80%+ accuracy and sub-millisecond latencies]` |
+### Overview Dashboard
+Monitor scanned files, pending reviews, completed actions, and the Lazy Morning Brief.
+
+![SlothDesk AI Dashboard](screenshots/dashboard.png)
+
+### File Organizer
+Select a local folder and scan files to prepare an organization plan.
+
+![SlothDesk AI File Organizer](screenshots/file-organizer.png)
+
+### Review & Approval Queue
+Review proposed file operations before approving them for execution.
+
+![SlothDesk AI Review Queue](screenshots/review-queue.png)
+
+### Activity History & Undo
+Inspect recorded operations and undo eligible file moves.
+
+![SlothDesk AI Activity History and Undo](screenshots/activity-undo.png)
+
+### Settings & Local AI Diagnostics
+Configure local inference and check Ollama and Gemma model availability.
+
+![SlothDesk AI Settings and Diagnostics](screenshots/settings-ai.png)
+
 
 ---
 
