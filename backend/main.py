@@ -9,11 +9,13 @@ from fastapi.staticfiles import StaticFiles
 from backend.config import settings
 from backend.database import (
     init_db, save_scan_session, save_suggestions, get_recent_operations,
-    update_suggestion_status, get_activity_stats
+    update_suggestion_status, get_activity_stats, approve_suggestions,
+    reject_suggestions, set_settings
 )
 from backend.models import (
     FolderScanRequest, FolderScanResponse,
     SuggestionBatchRequest, SuggestionBatchResponse,
+    SuggestionApprovalRequest, SuggestionApprovalResponse,
     ExecuteActionsRequest, ExecuteActionsResponse,
     UndoRequest, UndoResponse,
     AIStatusResponse, ActivitySummaryResponse,
@@ -31,6 +33,8 @@ from backend.evaluator import run_evaluation
 async def lifespan(app: FastAPI):
     # Initialize SQLite database schema
     init_db()
+    # Load user-configured persistent settings from database
+    settings.load_from_db()
     # Create sample playground directory for instant testing
     create_sample_playground()
     yield
@@ -96,7 +100,14 @@ def get_ai_status():
 
 @app.post("/api/scan", response_model=FolderScanResponse)
 def scan_folder(request: FolderScanRequest):
-    root_path = Path(request.folder_path)
+    raw_path = Path(request.folder_path)
+    if raw_path.is_symlink():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Security violation: Scan root path cannot be a symlink: '{request.folder_path}'"
+        )
+
+    root_path = raw_path.resolve()
     if not root_path.exists():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -116,11 +127,11 @@ def scan_folder(request: FolderScanRequest):
         )
 
     session_id = f"scan_{uuid.uuid4().hex[:8]}"
-    save_scan_session(session_id, str(root_path.resolve()), len(files))
+    save_scan_session(session_id, str(root_path), len(files))
 
     return FolderScanResponse(
         session_id=session_id,
-        root_path=str(root_path.resolve()),
+        root_path=str(root_path),
         files_scanned=len(files),
         files=files,
         scan_duration_ms=round(duration_ms, 2)
@@ -168,9 +179,34 @@ async def generate_suggestions(request: SuggestionBatchRequest):
         total_latency_ms=round(total_latency, 2)
     )
 
+@app.post("/api/suggestions/approve", response_model=SuggestionApprovalResponse)
+def approve_suggestions_endpoint(request: SuggestionApprovalRequest):
+    approved_ids = approve_suggestions(request.suggestion_ids)
+    return SuggestionApprovalResponse(
+        status="approved",
+        approved_ids=approved_ids,
+        count=len(approved_ids)
+    )
+
+@app.post("/api/suggestions/reject", response_model=SuggestionApprovalResponse)
+def reject_suggestions_endpoint(request: SuggestionApprovalRequest):
+    rejected_ids = reject_suggestions(request.suggestion_ids)
+    return SuggestionApprovalResponse(
+        status="rejected",
+        approved_ids=rejected_ids,
+        count=len(rejected_ids)
+    )
+
 @app.post("/api/execute", response_model=ExecuteActionsResponse)
 def execute_actions(request: ExecuteActionsRequest):
-    root_path = Path(request.root_path)
+    raw_root = Path(request.root_path)
+    if raw_root.is_symlink():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Security violation: Execution root cannot be a symlink: {request.root_path}"
+        )
+
+    root_path = raw_root.resolve()
     if not root_path.exists() or not root_path.is_dir():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -214,14 +250,29 @@ def get_current_settings():
 
 @app.post("/api/settings")
 def update_settings(update: SettingsUpdateRequest):
-    if update.model_name:
-        settings.model_name = update.model_name.strip()
-    if update.ollama_base_url:
-        settings.ollama_base_url = update.ollama_base_url.strip()
+    updates_to_persist = {}
+    if update.model_name and update.model_name.strip():
+        clean_model = update.model_name.strip()
+        settings.model_name = clean_model
+        updates_to_persist["model_name"] = clean_model
+
+    if update.ollama_base_url and update.ollama_base_url.strip():
+        clean_url = update.ollama_base_url.strip()
+        if clean_url.startswith("http://") or clean_url.startswith("https://"):
+            settings.ollama_base_url = clean_url
+            updates_to_persist["ollama_base_url"] = clean_url
+
     if update.seconds_saved_per_file is not None:
-        settings.seconds_saved_per_file = max(5, min(3600, update.seconds_saved_per_file))
+        validated_sec = max(5, min(3600, int(update.seconds_saved_per_file)))
+        settings.seconds_saved_per_file = validated_sec
+        updates_to_persist["seconds_saved_per_file"] = str(validated_sec)
+
     if update.categories:
         settings.default_categories.update(update.categories)
+        updates_to_persist["default_categories"] = settings.default_categories
+
+    if updates_to_persist:
+        set_settings(updates_to_persist)
 
     return {"status": "updated", "settings": get_current_settings()}
 
@@ -229,4 +280,3 @@ def update_settings(update: SettingsUpdateRequest):
 dist_path = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 if dist_path.exists() and (dist_path / "index.html").exists():
     app.mount("/", StaticFiles(directory=str(dist_path), html=True), name="frontend-dist")
-

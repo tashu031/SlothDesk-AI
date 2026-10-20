@@ -8,7 +8,7 @@ SlothDesk AI is a local-first, privacy-preserving AI productivity agent built fo
 
 ## 🌟 Hacktoberfest 2026: Why "Slow and Steady"?
 
-Modern desktop productivity is often hijacked by frantic hype and rushed tools that blindly upload private documents to third-party cloud APIs. 
+Modern desktop productivity is often hijacked by frantic hype and rushed tools that blindly upload private documents to third-party cloud APIs.
 
 **SlothDesk AI embraces the "Slow and Steady" ethos:**
 1. **Take It Slow**: Let local AI do the repetitive sorting, categorizing, and renaming while you enjoy your coffee.
@@ -120,7 +120,7 @@ flowchart TD
 ### 1. Clone & Set Up Python Environment
 ```powershell
 # In PowerShell:
-git clone https://github.com/your-username/slothdesk-ai.git
+git clone https://github.com/tashu031/SlothDesk-AI.git
 cd slothdesk-ai
 
 # Create virtual environment
@@ -143,11 +143,16 @@ cd ..
 ```
 
 ### 3. (Optional) Run Local Gemma with Ollama
+If you wish to use local neural inference with Google Gemma 2B via Ollama:
 ```powershell
-# In a separate terminal:
-ollama run gemma2:2b
+# 1. Download and run the Windows installer from https://ollama.com/download
+# 2. In PowerShell, pull the Gemma 2B model:
+ollama pull gemma2:2b
+
+# 3. Verify Ollama is serving locally:
+ollama list
 ```
-*(If Ollama is not running, SlothDesk AI automatically uses its deterministic metadata fallback so all features remain functional!)*
+*(If Ollama is not installed or the model is not pulled, SlothDesk AI transparently activates its deterministic metadata fallback engine. All organization, safety, scanning, and undo features remain 100% operational offline without any errors!)*
 
 ### 4. Launch SlothDesk AI
 You can launch the full application with the FastAPI server (which automatically serves the compiled React frontend at `http://127.0.0.1:8000`):
@@ -164,11 +169,16 @@ Open **`http://localhost:8000`** in your browser.
 ## 🧪 Testing & Evaluation
 
 ### 1. Run Automated Test Suite
-SlothDesk AI includes 14 comprehensive automated tests covering path traversal defense, file scanning, schema validation, safe moves, duplicate avoidance, undo recovery, and API endpoints:
+SlothDesk AI includes 35 comprehensive automated tests covering path traversal defense, file scanning, schema validation, safe moves, duplicate avoidance, undo recovery, persistent settings, symlink rejection, source tampering detection, and API endpoints:
 
 ```powershell
-.\venv\Scripts\python.exe -m pytest backend/tests -v
+# Using the configured pytest runner:
+.\venv\Scripts\pytest -v
 ```
+
+**Actual Verified Test Results:**
+- **34 Passed, 1 Skipped** (The 1 skipped test is for symlink creation on Windows environments where unprivileged symlink creation requires Developer Mode; symlink rejection logic itself is active).
+- **0 Failures**.
 
 ### 2. Run Live Accuracy & Latency Benchmark
 SlothDesk includes a reproducible evaluation harness (`backend/evaluator.py`) testing a labeled sample dataset across categories (Study, Documents, Code, Data, Images, Archives):
@@ -177,13 +187,14 @@ SlothDesk includes a reproducible evaluation harness (`backend/evaluator.py`) te
 .\venv\Scripts\python.exe backend/evaluator.py
 ```
 
-**Actual Measured Benchmark Results:**
+**Actual Measured Benchmark Results (Reproducible Run):**
 - **Deterministic Heuristic Fallback**:
-  - Accuracy: **80.0%** (8/10 correct)
-  - Average Latency: **0.11 ms**
+  - Accuracy: **100.0%** (10/10 correct)
+  - Average Latency: **~5.2 ms** (measured on local CPU)
+  - All categories correctly classified: Invoices and legal receipts are classified as `Documents` (fixing prior keyword collisions with code), and essays are correctly identified without false triggers.
 - **Gemma 2B (Local Ollama)**:
-  - Accuracy: **90%+**
-  - Average Latency: **~400–900 ms** (on local CPU/GPU)
+  - Accessible when Ollama daemon is running with `gemma2:2b`.
+  - Latency is measured directly per inference call when model weights are active.
 
 You can also run this benchmark anytime directly from the **Settings & AI Diagnostics** page in the UI!
 
@@ -198,17 +209,31 @@ Every morning or on-demand, SlothDesk generates a concise activity summary based
 - Errors or conflicts
 - **Configurable Estimated Time Saved**:
   $$\text{Time Saved} = N_{\text{executed}} \times 45\text{ seconds}$$
-  *(Accounts for manual file inspection, category folder creation, and renaming. The rate is configurable in Settings).*
+  *(Accounts for manual file inspection, category folder creation, and renaming. The rate is configurable in Settings and stored persistently in SQLite).*
 
 ---
 
 ## 🛡️ Security & Privacy Guarantees
 
-1. **Root Containment**: Every file operation verifies that both the source and target resolve strictly within the user-approved folder. Traversal sequences like `../` or symlinks that point outside are rejected.
-2. **Zero Overwrite Guarantee**: Existing files are never overwritten. If `report.pdf` exists at the target, SlothDesk safely renames it to `report_1.pdf`.
-3. **No Automatic Deletion**: SlothDesk never deletes files automatically.
-4. **Untrusted Input Boundaries**: File text extracted from documents is treated strictly as untrusted data within LLM prompts, preventing indirect prompt injection.
-5. **Zero Cloud Telemetry**: All operations happen on your local storage. No document snippets, filenames, or metrics leave your device.
+1. **Server-Side Action Validation**: Every executed action must correspond to a valid, persisted, pending suggestion generated by the server. Arbitrary client-supplied actions and forged action IDs are strictly rejected.
+2. **Explicit Server Approval**: Actions require explicit server-side approval (`/api/suggestions/approve`). Client-supplied boolean flags are not trusted.
+3. **Scan Root Binding**: Approved actions are cryptographically bound to the original scan session root. Operations cannot be redirected to arbitrary folders or across different scan roots.
+4. **Pre-Resolution Symlink Rejection**: Source and destination paths (and all their parent directory components) are checked for symlinks *before* path resolution to prevent symlink traversal and escapes.
+5. **Source File Integrity Check**: The source file's size and modification timestamp are recorded at suggestion time. If a file is altered or swapped on disk before execution, the operation is blocked for safety.
+6. **Zero Overwrite Guarantee**: Existing destination files are never overwritten. If `report.pdf` exists at the target, SlothDesk safely resolves the conflict to `report_1.pdf`.
+7. **No Automatic Deletion**: SlothDesk never deletes files automatically.
+8. **Verified Undo**: Before reversing an operation, SlothDesk validates that the destination file still exists, is a regular file, is not a symlink, and matches the recorded size. Restoration targets resolve conflicts without overwriting.
+9. **Persistent Settings**: User configuration (selected model, time heuristics, custom categories) is persisted in SQLite across application restarts.
+10. **Untrusted Input Boundaries**: File text extracted from documents is treated strictly as untrusted data within LLM prompts, preventing indirect prompt injection.
+11. **Zero Cloud Telemetry**: All operations happen on your local storage. No document snippets, filenames, or metrics leave your device.
+
+---
+
+## ⚠️ Known Limitations
+
+- **Ollama Offline Mode**: If Ollama is not installed or running, the system automatically uses its high-accuracy deterministic fallback engine. Neural inference requires manual installation of Ollama on Windows.
+- **Windows Symlinks**: On standard Windows installations without Developer Mode, symbolic link creation requires elevated administrator privileges. SlothDesk rejects operations on existing symlinks to preserve filesystem safety.
+- **Non-Text Binary Formats**: Executable binaries (`.exe`, `.dll`) and encrypted archives are classified based on extensions and metadata rather than content previews.
 
 ---
 

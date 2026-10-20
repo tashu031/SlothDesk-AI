@@ -38,6 +38,8 @@ class SuggestionItem(BaseModel):
     confidence: float = 0.95
     latency_ms: float = 0.0
     status: str = "pending"
+    source_size_bytes: int = 0
+    source_mtime: float = 0.0
 
 class SuggestionBatchRequest(BaseModel):
     session_id: str
@@ -52,6 +54,14 @@ class SuggestionBatchResponse(BaseModel):
     fallback_count: int
     ai_count: int
     total_latency_ms: float
+
+class SuggestionApprovalRequest(BaseModel):
+    suggestion_ids: list[str]
+
+class SuggestionApprovalResponse(BaseModel):
+    status: str
+    approved_ids: list[str]
+    count: int
 
 class ActionItem(BaseModel):
     id: str

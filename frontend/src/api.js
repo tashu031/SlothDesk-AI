@@ -49,6 +49,19 @@ export async function generateSuggestions(sessionId, rootPath, files, customRule
   return res.json();
 }
 
+export async function approveSuggestions(suggestionIds) {
+  const res = await fetch(`${API_BASE}/suggestions/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ suggestion_ids: suggestionIds })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to approve suggestions' }));
+    throw new Error(err.detail || 'Failed to approve suggestions');
+  }
+  return res.json();
+}
+
 export async function executeActions(rootPath, actions) {
   const res = await fetch(`${API_BASE}/execute`, {
     method: 'POST',

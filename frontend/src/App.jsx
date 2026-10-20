@@ -6,16 +6,17 @@ import OrganizerView from './components/OrganizerView';
 import ApprovalQueueView from './components/ApprovalQueueView';
 import HistoryView from './components/HistoryView';
 import SettingsView from './components/SettingsView';
-import { 
-  fetchAIStatus, 
-  fetchSummary, 
-  fetchHistory, 
-  fetchSettings, 
-  scanFolder, 
-  createSamplePlayground, 
-  generateSuggestions, 
-  executeActions, 
-  undoOperation 
+import {
+  fetchAIStatus,
+  fetchSummary,
+  fetchHistory,
+  fetchSettings,
+  scanFolder,
+  createSamplePlayground,
+  generateSuggestions,
+  approveSuggestions,
+  executeActions,
+  undoOperation
 } from './api';
 
 export default function App() {
@@ -114,6 +115,10 @@ export default function App() {
   const handleExecute = async (rootPath, actions) => {
     setIsExecuting(true);
     try {
+      const approvedIds = actions.filter(a => a.approved).map(a => a.id);
+      if (approvedIds.length > 0) {
+        await approveSuggestions(approvedIds);
+      }
       const res = await executeActions(rootPath, actions);
       showToast(`Executed ${res.total_succeeded} action(s) safely!`, 'success');
       // Remove executed suggestions from pending queue
@@ -172,18 +177,18 @@ export default function App() {
   return (
     <div className="flex min-h-screen bg-[#FAF8F2] text-[#14261C] font-sans antialiased selection:bg-[#2D5A40] selection:text-white">
       {/* Fixed Sidebar */}
-      <Sidebar 
-        currentView={currentView} 
-        setCurrentView={setCurrentView} 
+      <Sidebar
+        currentView={currentView}
+        setCurrentView={setCurrentView}
         aiStatus={aiStatus}
         pendingCount={suggestions.length}
       />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        <Header 
-          title={pageInfo.title} 
-          subtitle={pageInfo.subtitle} 
+        <Header
+          title={pageInfo.title}
+          subtitle={pageInfo.subtitle}
           onQuickSample={handleQuickSample}
           isScanning={isScanning}
         />
@@ -192,8 +197,8 @@ export default function App() {
         {toast && (
           <div className="fixed bottom-6 right-6 z-50 animate-bounce">
             <div className={`px-4 py-3 rounded-xl shadow-lg border text-xs font-semibold flex items-center space-x-2 ${
-              toast.type === 'success' 
-                ? 'bg-[#1B3B2B] text-[#84E1A9] border-[#2D5A40]' 
+              toast.type === 'success'
+                ? 'bg-[#1B3B2B] text-[#84E1A9] border-[#2D5A40]'
                 : toast.type === 'error'
                 ? 'bg-[#4A1515] text-[#FCA5A5] border-[#7F1D1D]'
                 : 'bg-[#1E293B] text-white border-slate-700'
@@ -206,7 +211,7 @@ export default function App() {
         {/* View Switcher */}
         <main className="flex-1 pb-16">
           {currentView === 'overview' && (
-            <OverviewView 
+            <OverviewView
               summary={summary}
               aiStatus={aiStatus}
               recentOperations={operations}
@@ -218,7 +223,7 @@ export default function App() {
           )}
 
           {currentView === 'organizer' && (
-            <OrganizerView 
+            <OrganizerView
               currentScan={currentScan}
               isScanning={isScanning}
               onScan={handleScan}
@@ -230,7 +235,7 @@ export default function App() {
           )}
 
           {currentView === 'queue' && (
-            <ApprovalQueueView 
+            <ApprovalQueueView
               suggestions={suggestions}
               rootPath={currentScan?.root_path || ''}
               onExecute={handleExecute}
@@ -241,7 +246,7 @@ export default function App() {
           )}
 
           {currentView === 'history' && (
-            <HistoryView 
+            <HistoryView
               operations={operations}
               onUndo={handleUndo}
               isUndoing={isUndoing}
@@ -249,7 +254,7 @@ export default function App() {
           )}
 
           {currentView === 'settings' && (
-            <SettingsView 
+            <SettingsView
               aiStatus={aiStatus}
               currentSettings={currentSettings}
               onSettingsUpdated={refreshCoreData}

@@ -1,5 +1,7 @@
+import json
 import os
 from pathlib import Path
+from typing import Optional
 from pydantic import BaseModel
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -16,11 +18,12 @@ class Settings(BaseModel):
     max_llm_content_chars: int = int(os.getenv("MAX_LLM_CONTENT_CHARS", "1500"))
     sample_dir: Path = BASE_DIR / "sample_playground"
     supported_text_extensions: set[str] = {
-        ".txt", ".md", ".markdown", ".py", ".js", ".ts", ".html", 
+        ".txt", ".md", ".markdown", ".py", ".js", ".ts", ".html",
         ".css", ".json", ".csv", ".yaml", ".yml", ".sql", ".sh", ".rst"
     }
     supported_pdf_extensions: set[str] = {".pdf"}
-    
+    supported_docx_extensions: set[str] = {".docx"}
+
     # Common categories and their target subfolders
     default_categories: dict[str, str] = {
         "Documents": "Documents",
@@ -31,5 +34,41 @@ class Settings(BaseModel):
         "Archives": "Archives",
         "Miscellaneous": "Miscellaneous"
     }
+
+    def load_from_db(self):
+        """
+        Loads saved user settings from SQLite if present, validates values,
+        and applies sensible defaults so preferences persist across restarts.
+        """
+        try:
+            from backend.database import get_all_settings
+            saved = get_all_settings()
+            if not saved:
+                return
+
+            if "model_name" in saved and saved["model_name"].strip():
+                self.model_name = saved["model_name"].strip()
+
+            if "ollama_base_url" in saved and saved["ollama_base_url"].strip():
+                url = saved["ollama_base_url"].strip()
+                if url.startswith("http://") or url.startswith("https://"):
+                    self.ollama_base_url = url
+
+            if "seconds_saved_per_file" in saved:
+                try:
+                    val = int(saved["seconds_saved_per_file"])
+                    self.seconds_saved_per_file = max(5, min(3600, val))
+                except (ValueError, TypeError):
+                    pass
+
+            if "default_categories" in saved:
+                try:
+                    cats = json.loads(saved["default_categories"])
+                    if isinstance(cats, dict):
+                        self.default_categories.update(cats)
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
 settings = Settings()
